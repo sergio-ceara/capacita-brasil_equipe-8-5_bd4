@@ -1,91 +1,97 @@
-# Processador de Dados do Google Sheets
+# Capacita Brasil - Indicadores do Banco 2
 
-Este script Python se conecta ao Google Sheets para recuperar e processar dados das abas da planilha '[Banco 1]: Sensibilização e Prospecção', gerando um resumo de eventos e participantes relacionados à sensibilização, prospecção e qualificação. Os dados processados são então compilados em uma nova planilha do Google Sheets, que é criada e formatada dentro de uma pasta do projeto para ser utilizado no Dashboard no Looker Studio.
+Este projeto automatiza o processo de leitura, tratamento e formatação de dados a partir da planilha '[Banco 2] - Seleção', com posterior criação de uma nova planilha formatada no Google Drive, para ser utilizada no dashboards.
 
 ## Funcionalidades
 
-* **Integração com Google Sheets**: Autentica e interage com o Google Sheets usando `gspread` e `google-api-python-client`.
-* **Extração de Dados**: Lê dados de diferentes abas dentro de uma URL de planilha do Google Sheets especificada.
-* **Transformação de Dados**:
-    * Identifica e conta eventos por tipo (sensibilização, prospecção, qualificação) anualmente.
-    * Conta indivíduos únicos ("Pessoas") participando de eventos de sensibilização, prospecção e qualificação anualmente.
-    * Lida com conversões de data e remove entradas duplicadas para uma contagem precisa.
-* **Integração com Google Drive**:
-    * Cria uma nova subpasta em uma pasta compartilhada do Google Drive.
-    * Gera uma nova planilha do Google Sheets dentro da subpasta criada.
-    * Define as permissões apropriadas para a nova planilha.
-    * Preenche a nova planilha com um cabeçalho estruturado e os dados processados.
-    * Aplica formatação básica à planilha de saída.
-* **Tratamento de Erros**: Inclui verificações básicas de conectividade com a internet e problemas com a autenticação e acesso à API do Google.
+- Verificação de conexão com a internet.
+- Conexão segura com APIs do Google Drive e Google Sheets.
+- Leitura de dados da aba "Dados Seleção" da planilha '[Banco 2] - Seleção'.
+- Transformação e padronização de dados:
+  - Mapeamento de colunas.
+  - Criação de coluna "País".
+  - Conversão de status ("Sim"/"Não") em "Aprovado"/"Inscrito".
+- Criação de nova planilha no Google Drive com dados tratados.
+- Aplicação de formatações automáticas (cores, bordas, alinhamento, ajuste de colunas).
+- Geração de link público para acesso à nova planilha.
+
+## Estrutura do Projeto
+
+```
+capacita-brasil_banco-2_indicadores
+│
+├── capacita-brasil_banco-2_indicadores.py  # Script principal
+├── funcoes.py                              # Módulo com funções auxiliares
+├── .env                                    # Variáveis de ambiente (não incluso no repositório)
+└── README.md                               # Esta documentação
+
+````
 
 ## Pré-requisitos
 
-Antes de executar este script, certifique-se de ter o seguinte:
+- Python 3.8 ou superior
+- Conta de serviço do Google com acesso à API do Drive e Sheets
+- Credenciais JSON do Google (OAuth2)
+- Planilha '[Banco 2] - Seleção' e aba `Dados Seleção`
+- Biblioteca Python:
+  - `gspread`
+  - `pandas`
+  - `openpyxl`
+  - `google-api-python-client`
+  - `oauth2client`
+  - `python-dotenv`
+  - `tabulate`
 
-* **Python 3.x**: Instalado em seu sistema.
-* **Projeto Google Cloud**: Um projeto Google Cloud com a API Google Sheets e a API Google Drive ativadas.
-* **Conta de Serviço**: Uma conta de serviço com acesso às suas planilhas e ao Google Drive. Baixe o arquivo de chave JSON para esta conta de serviço.
-* **Arquivo `.env`**: Um arquivo `.env` na raiz do diretório do seu projeto com as seguintes variáveis de ambiente configuradas:
-    * `GOOGLE_CREDS_JSON_PATH`: O caminho para o arquivo de chave JSON da sua conta de serviço.
-    * `BANCO_1_URL`: A URL da planilha do Google Sheets que contém seus dados brutos.
-    * `PASTA_COMPARTILHADA`: A URL da pasta compartilhada do Google Drive onde a planilha de saída será criada.
-    * `SUB_PASTA`: (Opcional) O nome da subpasta a ser criada dentro da pasta compartilhada.
-    * `PLANILHA`: O nome desejado para a planilha de saída do Google Sheets.
-    * `planilha_coluna_inicial`: (Opcional) A coluna inicial para inserção de dados (padrão: 'a').
-    * `planilha_linha_inicial`: (Opcional) A linha inicial para inserção de dados (padrão: '1').
-
-## Instalação
-
-1.  **Clone o repositório (ou baixe o script):**
-
-    ```bash
-    git clone <url_do_repositorio>
-    cd <diretorio_do_repositorio>
-    ```
-
-2.  **Instale as bibliotecas Python necessárias:**
-
-    ```bash
-    pip install gspread google-api-python-client pandas python-dotenv oauth2client
-    ```
-
-3.  **Configure seu arquivo `.env`:**
-
-    Crie um arquivo chamado `.env` no mesmo diretório do seu script e adicione as variáveis de ambiente conforme descrito na seção **Pré-requisitos**.
-
-## Uso
-
-Execute o script a partir do seu terminal:
+Instale com:
 
 ```bash
-python nome_do_seu_script.py
+pip install -r requirements.txt
+````
+
+> Se ainda não houver um `requirements.txt`, crie com base nas dependências acima.
+
+## Variáveis de Ambiente (.env)
+
+Crie um arquivo `.env` com as seguintes variáveis:
+
+```env
+GOOGLE_CREDS_JSON_PATH=path/para/credenciais.json
+BANCO_2_URL=https://docs.google.com/spreadsheets/d/EXEMPLO_DE_URL/edit
+PASTA_COMPARTILHADA=https://drive.google.com/drive/folders/ID_DA_PASTA
+SUB_PASTA=Indicadores
+PLANILHA=Indicadores Banco 2
+planilha_coluna_inicial=B
+planilha_linha_inicial=2
 ```
 
-O script imprimirá mensagens de status no console, incluindo a URL da nova planilha do Google Sheets assim que o processo for concluído.
+## Como Executar
 
-## Estrutura do Script
+```bash
+python capacita-brasil_banco-2_indicadores.py
+```
 
-* **Importações**: Bibliotecas essenciais para interação com a API do Google, manipulação de dados e carregamento de variáveis de ambiente.
-* **`funcoes.py`**: (Assumido) Um módulo separado chamado `funcoes.py` contendo funções auxiliares para:
-    * `verificar_conexao()`: Verifica a conectividade com a internet.
-    * `banco_indisponivel()`: Lida com casos em que a planilha do Google Sheets está indisponível.
-    * `listar_tabela()`: Formata e imprime tabelas de dados no console.
-    * `driver_conexao()`: Estabelece conexões com os serviços do Google Drive e Sheets.
-    * `link_id()`: Extrai o ID de uma URL do Google Drive.
-    * `apagar_pasta_arquivo()`: Exclui pastas ou arquivos (usado para limpeza/teste no código fornecido).
-    * `criar_pasta()`: Cria uma nova pasta no Google Drive.
-    * `criar_planilha()`: Cria uma nova planilha do Google Sheets.
-    * `permissoes_pasta_arquivo()`: Define permissões para arquivos/pastas.
-    * `planilha_celulas_intervalo()`: Calcula os intervalos de células para solicitações da API Google Sheets.
-    * `planilha_dados()`: Atualiza os dados em uma planilha do Google Sheets.
-    * `planilha_formatacao()`: Aplica formatação a uma planilha do Google Sheets.
-* **Bloco Principal de Execução**:
-    * Verifica a conexão com a internet.
-    * Carrega as variáveis de ambiente.
-    * Autentica com as APIs do Google Sheets e Drive.
-    * Abre a planilha de origem e itera através de suas abas.
-    * Processa os dados das abas 'Dados de Inscrições em Eventos' e 'Dados de Prospecção e Qualificação' para contar eventos e pessoas.
-    * Compila todos os dados agregados em um formato estruturado.
-    * Chama funções auxiliares para criar uma nova pasta, uma nova planilha do Google Sheets, preenchê-la com dados e aplicar formatação.
-    * Imprime a URL da planilha do Google Sheets gerada.
-    * Inclui bloco `try-except` para exceções `HttpError` durante as interações com a API do Google.
+A execução realizará os seguintes passos:
+
+1. Checagem de conexão com a internet.
+2. Leitura e validação da planilha de origem.
+3. Criação de nova planilha no Google Drive.
+4. Aplicação de formatação visual.
+5. Impressão do link de acesso à nova planilha.
+
+## Exemplo de Saída
+
+```text
+Conectado à internet.
+Serviços do Google Drive, Sheets e cliente gspread ativos.
+Nome da pasta compartilhada: ???
+Nenhum registro repetido encontrado.
+Criando planilha 'Indicadores Banco 2' com ID: 1A2B3C...
+Formatação aplicada com sucesso!
+
+Link da planilha criada: https://docs.google.com/spreadsheets/d/1A2B3C/edit
+Fim.
+```
+
+## Possíveis Melhorias
+
+* Utilizar este programa como referência para gerar outro com todos os indicadores.
