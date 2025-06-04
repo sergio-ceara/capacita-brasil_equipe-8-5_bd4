@@ -1,97 +1,90 @@
-# Capacita Brasil - Indicadores do Banco 2
+# Banco de Dados - [Banco 4] - Agregação de Valor
 
-Este projeto automatiza o processo de leitura, tratamento e formatação de dados a partir da planilha '[Banco 2] - Seleção', com posterior criação de uma nova planilha formatada no Google Drive, para ser utilizada no dashboards.
+Este projeto automatiza a leitura, unificação, processamento e formatação de dados de duas abas distintas de uma planilha no Google Sheets. Ele cria uma nova planilha formatada e salva o resultado em uma pasta do Google Drive, com permissões públicas configuradas para ser usada num dashboard criado no Looker Studio.
+
+---
 
 ## Funcionalidades
 
-- Verificação de conexão com a internet.
-- Conexão segura com APIs do Google Drive e Google Sheets.
-- Leitura de dados da aba "Dados Seleção" da planilha '[Banco 2] - Seleção'.
-- Transformação e padronização de dados:
-  - Mapeamento de colunas.
-  - Criação de coluna "País".
-  - Conversão de status ("Sim"/"Não") em "Aprovado"/"Inscrito".
-- Criação de nova planilha no Google Drive com dados tratados.
-- Aplicação de formatações automáticas (cores, bordas, alinhamento, ajuste de colunas).
-- Geração de link público para acesso à nova planilha.
+- Verificação de conectividade com a internet
+- Conexão autenticada com Google Drive e Google Sheets via API
+- Leitura segura de duas abas de uma planilha existente (Consultorias e Mentorias)
+- Unificação e limpeza dos dados lidos
+- Criação de nova planilha no Drive com:
+  - Cabeçalhos destacados
+  - Bordas e alinhamentos aplicados
+  - Remoção de linhas de grade
+  - Autoajuste de colunas
+- Armazenamento em pasta compartilhada no Drive
+- Permissões automáticas (anyone, edit)
+- Variáveis de ambiente configuráveis via `.env`
+
+---
 
 ## Estrutura do Projeto
 
-```
-capacita-brasil_banco-2_indicadores
-│
-├── capacita-brasil_banco-2_indicadores.py  # Script principal
-├── funcoes.py                              # Módulo com funções auxiliares
-├── .env                                    # Variáveis de ambiente (não incluso no repositório)
-└── README.md                               # Esta documentação
+├── main.py     # Arquivo principal de execução
+├── funcoes.py  # Módulo com todas as funções auxiliares
+├── .env        # Conteúdo particular (não subir para o GitHub)
+└── README.md   # Este documento
 
-````
 
-## Pré-requisitos
+---
 
-- Python 3.8 ou superior
-- Conta de serviço do Google com acesso à API do Drive e Sheets
-- Credenciais JSON do Google (OAuth2)
-- Planilha '[Banco 2] - Seleção' e aba `Dados Seleção`
-- Biblioteca Python:
-  - `gspread`
-  - `pandas`
-  - `openpyxl`
-  - `google-api-python-client`
-  - `oauth2client`
-  - `python-dotenv`
-  - `tabulate`
+## Requisitos
 
-Instale com:
+- Python 3.8+
+- Conta Google com acesso à API do Drive e Sheets
+- Credenciais do serviço (arquivo JSON da conta de serviço)
+- Permissões de acesso à planilha e pasta no Drive
+
+---
+
+## Instalação
+
+1. Clone o repositório:
 
 ```bash
+git clone https://github.com/sergio-ceara/capacita-brasil_equipe-8-5_bd4.git
+cd capacita-brasil_equipe-8-5_bd4
+
+2. Instale as dependências:
 pip install -r requirements.txt
-````
+  arquivo: requirements.txt
+  gspread==6.0.2
+  google-api-python-client==2.126.0
+  google-auth==2.29.0
+  google-auth-oauthlib==1.2.0
+  pandas==2.2.2
+  python-dotenv==1.0.1
+  openpyxl==3.1.2
 
-> Se ainda não houver um `requirements.txt`, crie com base nas dependências acima.
+3. Crie o arquivo .env com as seguintes variáveis:
+GOOGLE_CREDS_JSON_PATH=/caminho/para/seu/arquivo.json
+BANCO_4_URL=https://docs.google.com/spreadsheets/d/SEU_ID
+PASTA_COMPARTILHADA=Nome da Pasta no Drive
+SUB_PASTA=Nome da Subpasta (opcional)
+PLANILHA=Nome da Nova Planilha a ser criada
 
-## Variáveis de Ambiente (.env)
+4. Execução
+python main.py
 
-Crie um arquivo `.env` com as seguintes variáveis:
+5. Exemplo de Uso
+O script irá:
+    Verificar a conexão com a internet
+    Autenticar com Google APIs usando a conta de serviço
+    Ler os dados de duas abas específicas da planilha
+    Concatenar, limpar e formatar os dados
+    Criar nova planilha com formatações visuais
+    Exibir o link da nova planilha no terminal
 
-```env
-GOOGLE_CREDS_JSON_PATH=path/para/credenciais.json
-BANCO_2_URL=https://docs.google.com/spreadsheets/d/EXEMPLO_DE_URL/edit
-PASTA_COMPARTILHADA=https://drive.google.com/drive/folders/ID_DA_PASTA
-SUB_PASTA=Indicadores
-PLANILHA=Indicadores Banco 2
-planilha_coluna_inicial=B
-planilha_linha_inicial=2
-```
+6. Bibliotecas Utilizadas
+    gspread
+    google-api-python-client
+    google-auth
+    pandas
+    python-dotenv
+    openpyxl
 
-## Como Executar
-
-```bash
-python capacita-brasil_banco-2_indicadores.py
-```
-
-A execução realizará os seguintes passos:
-
-1. Checagem de conexão com a internet.
-2. Leitura e validação da planilha de origem.
-3. Criação de nova planilha no Google Drive.
-4. Aplicação de formatação visual.
-5. Impressão do link de acesso à nova planilha.
-
-## Exemplo de Saída
-
-```text
-Conectado à internet.
-Serviços do Google Drive, Sheets e cliente gspread ativos.
-Nome da pasta compartilhada: ???
-Nenhum registro repetido encontrado.
-Criando planilha 'Indicadores Banco 2' com ID: 1A2B3C...
-Formatação aplicada com sucesso!
-
-Link da planilha criada: https://docs.google.com/spreadsheets/d/1A2B3C/edit
-Fim.
-```
-
-## Possíveis Melhorias
-
-* Utilizar este programa como referência para gerar outro com todos os indicadores.
+7. Junção com outros projetos
+Este é 1 dos 5 módulos de leitura e transformação de dados que compõem um conjunto maior. Cada módulo trata de uma planilha diferente. A etapa final unificará todos os processamentos em uma execução única para geração de dashboards consolidados.

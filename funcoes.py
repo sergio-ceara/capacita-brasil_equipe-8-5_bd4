@@ -3,12 +3,13 @@ import re
 import sys
 import socket
 import gspread
+import unicodedata
 import pandas as pd
 from tabulate import tabulate
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.service_account import Credentials
-from oauth2client.service_account import ServiceAccountCredentials
+from gspread.auth import service_account
 from openpyxl.utils import get_column_letter, column_index_from_string
 from openpyxl.utils.cell import range_boundaries
 
@@ -48,11 +49,7 @@ def conectar_google_apis():
         service_drive  = build('drive', 'v3', credentials=creds)
         service_sheets = build('sheets', 'v4', credentials=creds)
         # Autenticação para gspread
-        gs_credentials = ServiceAccountCredentials.from_json_keyfile_name(creds_path, SCOPES)
-        if not gs_credentials:
-            print("Serviço gspread indisponível (credenciais inválidas).")
-            sys.exit(1)
-        gs_client = gspread.authorize(gs_credentials)
+        gs_client = gspread.authorize(creds)
         print("Serviços do Google Drive, Sheets e cliente gspread ativos.")
         return service_drive, service_sheets, gs_client
     except Exception as e:
@@ -113,6 +110,11 @@ def preparar_dados_para_tabela(registros, cabecalho: list = None):
     
     return df
 
+def remover_acentos(texto):
+    if isinstance(texto, str):
+        return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('utf-8')
+    return texto or ''
+
 # Exibe um DataFrame Pandas em uma tabela formatada no console, incluindo totais.
 def exibir_tabela_formatada(titulo: str, df: pd.DataFrame, coluna_numerica: str = None):
     print(f"\n{titulo}")
@@ -165,14 +167,15 @@ def carregar_dados_planilha(planilha, aba: str):
     except gspread.exceptions.WorksheetNotFound:
         print(f"Aba '{aba}' não encontrada na planilha.")
         sys.exit(1)
-
-    dados = pd.DataFrame(sheet.get_all_records())
+    
     # A condição "IF" é utiliza para acrescentar outras abas e seus processamentos.
+    # A condição para 'Dados Seleção' é do 'Banco 2', e serve de referência para quando for juntar os códigos.
     if aba == 'Dados Seleção':
+       dados = pd.DataFrame(sheet.get_all_records())
        colunas_necessarias = ['Ano', 'Nome', 'Contrato', 'Cidade', 'Estado', 'Área']
        if not all(col in dados.columns for col in colunas_necessarias):
           missing_cols = [col for col in colunas_necessarias if col not in dados.columns]
-          print(f"Colunas obrigatórias faltando na aba '{aba}': {', '.join(missing_cols)}")
+          print(f"\nColunas obrigatórias faltando na aba '{aba}': {', '.join(missing_cols)}")
           sys.exit(1)
         
        dados = dados[colunas_necessarias].copy()
@@ -195,9 +198,125 @@ def carregar_dados_planilha(planilha, aba: str):
        # Contabiliza registro duplicados 
        repetidos = dados.duplicated().sum()
        if repetidos > 0:
-          print(f"Quantidade de registros repetidos encontrados: {repetidos}")
+          print(f"\nQuantidade de registros repetidos encontrados: {repetidos}")
        else:
            print("\nNenhum registro repetido encontrado.")
+    elif aba == "Banco de Consultorias":
+       valores = sheet.get_all_values()
+       dados = pd.DataFrame(valores[1:], columns=valores[0])
+       colunas_necessarias = ['Ano', 'Nome do Consultor', 'Quantidade de horas']
+       if not all(col in dados.columns for col in colunas_necessarias):
+          missing_cols = [col for col in colunas_necessarias if col not in dados.columns]
+          print(f"\nColunas obrigatórias faltando na aba '{aba}': {', '.join(missing_cols)}")
+          sys.exit(1)
+       # Remove linhas totalmente vazias
+       dados = dados.dropna(how='all')  
+       # Remove linhas onde qualquer uma das colunas obrigatórias está vazia
+       dados = dados.dropna(subset=['Ano', 'Nome do Consultor', 'Quantidade de horas'])
+       # Remove linhas onde 'Nome do Consultor' está vazio ou contém apenas espaços
+       dados = dados[dados['Nome do Consultor'].str.strip() != '']       
+       # Contabiliza registro duplicados 
+       colunas_duplicadas = ['Ano', 'Nome do Consultor', 'Nome Startup', 'Quantidade de horas']
+       repetidos = dados.duplicated(subset=colunas_duplicadas).sum()
+       if repetidos > 0:
+          print(f"\nQuantidade de registros repetidos encontrados: {repetidos}")
+          print("Registros duplicados:")
+          print(dados[dados.duplicated()])          
+          # Remove os duplicados
+          dados = dados.drop_duplicates(subset=colunas_duplicadas)          
+       else:
+           print("Nenhum registro repetido encontrado.")
+       dados = dados[colunas_necessarias].copy()
+       # Acrescentar uma coluna fixa 'atividade' com conteúdo "Consultoria"
+       dados['atividade'] = 'Consultoria'
+       # Altera o nome das colunas para ficar compatível com o dashboard criado.
+       dados = dados.rename(columns={
+            'Ano': 'ano',
+            'Nome do Consultor': 'profissional',
+            'Quantidade de horas': 'horas'
+        })
+       # Converte a coluna 'horas' para tipo numérico (float)
+       dados['horas'] = pd.to_numeric(dados['horas'], errors='coerce')
+       # Remove acentuação de colunas do tipo texto
+       for col in ['profissional', 'atividade']:
+           dados[col] = dados[col].apply(remover_acentos)       
+       # Remover espaços em branco para impedir repetições por diferenças:
+       # Exemplo: "Paulo", "Paulo " e " Paulo" são conteúdos diferentes.
+       for col in ['ano', 'profissional', 'atividade']:
+           dados[col] = dados[col].astype(str).str.strip()
+       # Capitaliza a primeira letra de cada palavra no nome do profissional
+       dados['profissional'] = dados['profissional'].str.title()
+       # Corrige nomes específicos (ex: remove "Dos" de "Moises Dos Santos")
+       dados['profissional'] = dados['profissional'].replace({
+             'Moises Dos Santos': 'Moises Santos'
+       })       
+       # Define os títulos das colunas com os novos nomes
+       colunas_final = ['ano', 'atividade', 'profissional', 'horas']
+       # Atribui esses novos nomes 
+       dados = dados[colunas_final]
+       print(f"\nConsultorias: {len(dados)}")
+
+    elif aba == "Banco de Mentorias":
+       valores = sheet.get_all_values()
+       dados = pd.DataFrame(valores[1:], columns=valores[0])
+       # Remove linhas totalmente vazias
+       dados = dados.dropna(how='all')  
+       # Remove linhas onde qualquer uma das colunas obrigatórias está vazia
+       dados = dados.dropna(subset=['Data', 'Nome do mentor', 'Horas de Mentorias'])
+       # Remove linhas onde 'Nome do Consultor' está vazio ou contém apenas espaços
+       dados = dados[dados['Nome do mentor'].str.strip() != '']       
+       # Convertendo a coluna 'Data do Evento' para o formato de data, caso não esteja
+       dados['Data'] = pd.to_datetime(dados['Data'], errors='coerce', dayfirst=True)
+       # Remove linhas com datas inválidas após conversão
+       dados = dados.dropna(subset=['Data'])  
+       # Contabiliza registro duplicados 
+       colunas_duplicadas = ['Data', 'Mentoria', 'Horas de Mentorias', 'Nome do mentor']
+       repetidos = dados.duplicated(subset=colunas_duplicadas).sum()
+       if repetidos > 0:
+          print(f"Quantidade de registros repetidos encontrados: {repetidos}")
+          print("Registros duplicados:")
+          print(dados[dados.duplicated()])          
+          # Remove os duplicados
+          dados = dados.drop_duplicates(subset=colunas_duplicadas)          
+       else:
+           print("Nenhum registro repetido encontrado.")
+       # Acrescenta a coluna 'Ano' através da coluna 'Data' 
+       dados['Ano'] = dados['Data'].dt.year
+       colunas_necessarias = ['Ano', 'Nome do mentor', 'Horas de Mentorias']
+       if not all(col in dados.columns for col in colunas_necessarias):
+          missing_cols = [col for col in colunas_necessarias if col not in dados.columns]
+          print(f"\nColunas obrigatórias faltando na aba '{aba}': {', '.join(missing_cols)}")
+          sys.exit(1)
+        
+       dados = dados[colunas_necessarias].copy()
+       # Acrescentar uma coluna fixa 'atividade' com conteúdo "Mentoria"
+       dados['atividade'] = 'Mentoria'
+       # Altera o nome das colunas para ficar compatível com o dashboard criado.
+       dados = dados.rename(columns={
+            'Ano': 'ano',
+            'Nome do mentor': 'profissional',
+            'Horas de Mentorias': 'horas'
+        })
+       # Converte a coluna 'horas' para tipo numérico (float)
+       dados['horas'] = pd.to_numeric(dados['horas'], errors='coerce')
+       # Remove acentuação de colunas do tipo texto
+       for col in ['profissional', 'atividade']:
+           dados[col] = dados[col].apply(remover_acentos)       
+       # Remover espaços em branco para impedir repetições por diferenças:
+       # Exemplo: "Paulo", "Paulo " e " Paulo" são conteúdos diferentes.
+       for col in ['ano', 'profissional', 'atividade']:
+           dados[col] = dados[col].astype(str).str.strip()
+       # Capitaliza a primeira letra de cada palavra no nome do profissional
+       dados['profissional'] = dados['profissional'].str.title()
+       # Corrige nomes específicos (ex: remove "Dos" de "Moises Dos Santos")
+       dados['profissional'] = dados['profissional'].replace({
+             'Moises Dos Santos': 'Moises Santos'
+       })       
+       # Define os títulos das colunas com os novos nomes
+       colunas_final = ['ano', 'atividade', 'profissional', 'horas']
+       # Atribui esses novos nomes 
+       dados = dados[colunas_final]
+       print(f"\nMentorias: {len(dados)}")
 
     return dados, colunas_final
 
@@ -353,8 +472,19 @@ def informacoes_driver(service_drive, item_id: str):
         return "", ""
 
 # Grava informações em um intervalo específico de uma planilha.
-def planilha_dados(service_sheets, planilha_id: str, intervalo: str, dados_para_gravar: list):
+def planilha_dados(service_sheets, planilha_id: str, intervalo: str, dados_para_gravar: list, modo: str='a'):
+    # modo: s-substituir (limpar aba antes de acrescentar)
+    #       a-atualizar (acrescenta apenas no intervalo)
     try:
+        if modo.lower() == 's':
+            # Limpa a planilha inteira (intervalo arbitrariamente grande)
+            clear_request = service_sheets.spreadsheets().values().clear(
+                spreadsheetId=planilha_id,
+                range='A1:Z1000'
+            )
+            clear_request.execute()
+            print(f"\nPlanilha limpa com sucesso antes da inserção.")
+
         request = service_sheets.spreadsheets().values().update(
             spreadsheetId=planilha_id,
             range=intervalo,
@@ -387,7 +517,7 @@ def apagar_pasta_arquivo(service_drive, item_id: str = None, item_nome: str = No
     informacoes = informacoes_driver(service_drive, item_id)
     item_nome_real = informacoes[0]
     item_tipo_mime = informacoes[1]
-    # Se for uma pasta
+    # Verifica se o item é uma pasta
     if 'folder' in item_tipo_mime:
         query = f"'{item_id}' in parents"
         try:
@@ -469,7 +599,7 @@ def formatar_fundo_cabecalho(sheet_id: int, cabecalho_intervalo: str):
                 'startRowIndex': start_row, 
                 'endRowIndex': end_row,
                 'startColumnIndex': start_col,
-                'endColumnIndex': end_col # endColumnIndex é exclusivo
+                'endColumnIndex': end_col # endColumnIndex é exclusivo conforme especificação da API Google Sheets
             },
             'fields': 'userEnteredFormat.backgroundColor',
             'rows': [
@@ -488,7 +618,9 @@ def formatar_fundo_cabecalho(sheet_id: int, cabecalho_intervalo: str):
 
 # Planilha: formatação: bordas num intervalo
 def formatar_bordas(sheet_id: int, intervalo: str):
+    #print(f"intervalo: {intervalo}")
     start_row, end_row, start_col, end_col = celula_intervalo_para_linhas_colunas(intervalo)
+    #print(f"start_row, end_row, start_col, end_col: {start_row}, {end_row}, {start_col}, {end_col}")
     return {
         'updateBorders': {
             'range': {
