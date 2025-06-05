@@ -46,8 +46,10 @@ Este projeto automatiza a leitura, unificação, processamento e formatação de
 ```bash
 git clone https://github.com/sergio-ceara/capacita-brasil_equipe-8-5_bd4.git
 cd capacita-brasil_equipe-8-5_bd4
+```bash
 
 2. Instale as dependências:
+```bash
 pip install -r requirements.txt
   arquivo: requirements.txt
   gspread==6.0.2
@@ -57,6 +59,7 @@ pip install -r requirements.txt
   pandas==2.2.2
   python-dotenv==1.0.1
   openpyxl==3.1.2
+```bash
 
 3. Crie o arquivo .env com as seguintes variáveis:
 GOOGLE_CREDS_JSON_PATH=/caminho/para/seu/arquivo.json
