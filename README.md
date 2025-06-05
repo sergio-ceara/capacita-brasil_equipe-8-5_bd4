@@ -46,12 +46,13 @@ Este projeto automatiza a leitura, unificação, processamento e formatação de
 ```bash
 git clone https://github.com/sergio-ceara/capacita-brasil_equipe-8-5_bd4.git
 cd capacita-brasil_equipe-8-5_bd4
-```bash
+```
 
 2. Instale as dependências:
 ```bash
 pip install -r requirements.txt
-  arquivo: requirements.txt
+
+arquivo: requirements.txt
   gspread==6.0.2
   google-api-python-client==2.126.0
   google-auth==2.29.0
@@ -59,19 +60,24 @@ pip install -r requirements.txt
   pandas==2.2.2
   python-dotenv==1.0.1
   openpyxl==3.1.2
-```bash
+```
 
 3. Crie o arquivo .env com as seguintes variáveis:
+```bash
 GOOGLE_CREDS_JSON_PATH=/caminho/para/seu/arquivo.json
 BANCO_4_URL=https://docs.google.com/spreadsheets/d/SEU_ID
 PASTA_COMPARTILHADA=Nome da Pasta no Drive
 SUB_PASTA=Nome da Subpasta (opcional)
 PLANILHA=Nome da Nova Planilha a ser criada
+```
 
 4. Execução
+```bash
 python main.py
+```
 
 5. Exemplo de Uso
+```bash
 O script irá:
     Verificar a conexão com a internet
     Autenticar com Google APIs usando a conta de serviço
@@ -79,14 +85,16 @@ O script irá:
     Concatenar, limpar e formatar os dados
     Criar nova planilha com formatações visuais
     Exibir o link da nova planilha no terminal
+```
 
 6. Bibliotecas Utilizadas
+```bash
     gspread
     google-api-python-client
     google-auth
     pandas
     python-dotenv
     openpyxl
-
-7. Junção com outros projetos
+```
+## Junção com outros projetos
 Este é 1 dos 5 módulos de leitura e transformação de dados que compõem um conjunto maior. Cada módulo trata de uma planilha diferente. A etapa final unificará todos os processamentos em uma execução única para geração de dashboards consolidados.
