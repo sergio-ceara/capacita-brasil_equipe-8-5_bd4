@@ -22,7 +22,6 @@ Este projeto automatiza a leitura, unificação, processamento e formatação de
 ---
 
 ## Estrutura do Projeto
-
 ├── main.py     # Arquivo principal de execução
 ├── funcoes.py  # Módulo com todas as funções auxiliares
 ├── .env        # Conteúdo particular (não subir para o GitHub)
